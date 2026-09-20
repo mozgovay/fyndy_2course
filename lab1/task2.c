@@ -223,12 +223,8 @@ Status row_gamma(double epsilon, double *out)
     do {
         previous = current;
         k++;
-        double root = sqrt(k);
-        if (fabs(root - floor(root)) < 1e-12) {
-            k++;
-            root = sqrt(k);
-        }
-        current += 1.0 / (floor(root) * floor(root)) - 1.0 / k;
+        double root = floor(sqrt(k));
+        current += 1.0 / (root * root) - 1.0 / k;
     } while (fabs(previous - current) >= epsilon);
     *out = current - M_PI * M_PI / 6.0;
     return OK;
