@@ -52,7 +52,7 @@ Status parse_args(int argc, const char *argv[], char *out_action, unsigned long 
     }
     char action = argv[1][1];
     if (action != 'h' && action != 'p' && action != 's' &&
-        action != 'e' && action != 'a') {
+        action != 'e' && action != 'a' && action != 'f') {
         return ERR_FLAG;
     }
     Status status = validate_ulong(argv[2], out_x);
@@ -191,6 +191,19 @@ Status task_a(unsigned long x, unsigned long long *out_sum)
     return OK;
 }
 
+Status task_f(unsigned long x, unsigned long long *out_fact)
+{
+    unsigned long long fact = 1;
+    for (unsigned long i = 2; i <= x; i++) {
+        if (fact > ULLONG_MAX / i) {
+            return ERR_OVERFLOW;
+        }
+        fact *= i;
+    }
+    *out_fact = fact;
+    return OK;
+}
+
 void print_status(Status status)
 {
     switch (status) {
@@ -200,7 +213,7 @@ void print_status(Status status)
             printf("Error: expected 2 arguments: <flag> <number>\n");
             break;
         case ERR_FLAG:
-            printf("Error: invalid flag. Use -h, -p, -s, -e, -a (or /)\n");
+            printf("Error: invalid flag. Use -h, -p, -s, -e, -a, -f (or /)\n");
             break;
         case ERR_NUMBER:
             printf("Error: number must be a positive integer\n");
@@ -269,6 +282,11 @@ void print_e_result(const unsigned long long *table, unsigned long x)
 void print_a_result(unsigned long x, unsigned long long sum)
 {
     printf("Sum from 1 to %lu = %llu\n", x, sum);
+}
+
+void print_f_result(unsigned long x, unsigned long long fact)
+{
+    printf("Factorial of %lu = %llu\n", x, fact);
 }
 
 int main(int argc, char *argv[])
@@ -340,6 +358,17 @@ int main(int argc, char *argv[])
                 return (int)status;
             }
             print_a_result(x, sum);
+            break;
+        }
+
+        case 'f': {
+            unsigned long long fact = 1;
+            status = task_f(x, &fact);
+            if (status != OK) {
+                print_status(status);
+                return (int)status;
+            }
+            print_f_result(x, fact);
             break;
         }
 
