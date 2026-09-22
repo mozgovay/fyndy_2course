@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <math.h>
 #include <limits.h>
+#include <float.h>
 
 typedef enum {
     OK = 0,
     INVALID_INPUT,
     INVALID_MEMORY,
-    OVERFLO,
+    OVERFLOW,
     ZERO
 } status;
 
@@ -17,11 +17,10 @@ status validate_epsilon(const char *s, double *out)
     if (s == NULL || *s == '\0') return INVALID_INPUT;
     if (*s == '-') return INVALID_INPUT;
 
-    errno = 0;
     char *end = NULL;
     double value = strtod(s, &end);
 
-    if (errno == ERANGE) return OVERFLO;
+    if (value == HUGE_VAL || value == -HUGE_VAL) return OVERFLOW;
     if (*end != '\0') return INVALID_INPUT;
     if (value <= 0.0 || value >= 1.0) return INVALID_INPUT;
 
@@ -33,11 +32,10 @@ status validate_double(const char *s, double *out)
 {
     if (s == NULL || *s == '\0') return INVALID_INPUT;
 
-    errno = 0;
     char *end = NULL;
     double value = strtod(s, &end);
 
-    if (errno == ERANGE) return OVERFLO;
+    if (value == HUGE_VAL || value == -HUGE_VAL) return OVERFLOW;
     if (*end != '\0') return INVALID_INPUT;
 
     *out = value;
@@ -48,11 +46,9 @@ status validate_nonzero_int(const char *s, long *out)
 {
     if (s == NULL || *s == '\0') return INVALID_INPUT;
 
-    errno = 0;
     char *end = NULL;
     long value = strtol(s, &end, 10);
 
-    if (errno == ERANGE) return OVERFLO;
     if (*end != '\0') return INVALID_INPUT;
     if (value == 0) return ZERO;
 
@@ -120,17 +116,17 @@ int is_unique_permutation(const double *p, double seen[][3], int n_seen)
     return 1;
 }
 
-void solve_quadratic(double a, double b, double c, double eps, int *out_kind,
-                     double *out_x1, double *out_x2)
+status solve_quadratic(double a, double b, double c, double eps, int *out_kind,
+                       double *out_x1, double *out_x2)
 {
     if (fabs(a) < eps) {
         if (fabs(b) < eps) {
             *out_kind = -1;
-            return;
+            return OK;
         }
         *out_kind = 1;
         *out_x1 = -c / b;
-        return;
+        return OK;
     }
 
     double d = b * b - 4.0 * a * c;
@@ -145,13 +141,15 @@ void solve_quadratic(double a, double b, double c, double eps, int *out_kind,
     } else {
         *out_kind = 0;
     }
+    return OK;
 }
 
-void print_quadratic(double a, double b, double c, double eps)
+status print_quadratic(double a, double b, double c, double eps)
 {
     int kind = 0;
     double x1 = 0, x2 = 0;
-    solve_quadratic(a, b, c, eps, &kind, &x1, &x2);
+    status st = solve_quadratic(a, b, c, eps, &kind, &x1, &x2);
+    if (st != OK) return st;
 
     printf("a=%.6f b=%.6f c=%.6f: ", a, b, c);
 
@@ -164,6 +162,7 @@ void print_quadratic(double a, double b, double c, double eps)
     } else {
         printf("x1 = %.6f, x2 = %.6f\n", x1, x2);
     }
+    return OK;
 }
 
 status run_q(double eps, double coeffs[3])
@@ -187,33 +186,36 @@ status run_q(double eps, double coeffs[3])
             seen[n_seen][2] = p[2];
             n_seen++;
 
-            print_quadratic(p[0], p[1], p[2], eps);
+            status st = print_quadratic(p[0], p[1], p[2], eps);
+            if (st != OK) return st;
         }
     }
     return OK;
 }
 
-int is_right_triangle(double a, double b, double c, double eps)
+status is_right_triangle(double a, double b, double c, double eps, int *out_result)
 {
-    if (a <= 0 || b <= 0 || c <= 0) return 0;
+    *out_result = 0;
+
+    if (a <= 0 || b <= 0 || c <= 0) return OK;
 
     double a2 = a * a, b2 = b * b, c2 = c * c;
 
-    if (fabs(a2 + b2 - c2) < eps) return 1;
-    if (fabs(a2 + c2 - b2) < eps) return 1;
-    if (fabs(b2 + c2 - a2) < eps) return 1;
+    if (fabs(a2 + b2 - c2) < eps) { *out_result = 1; return OK; }
+    if (fabs(a2 + c2 - b2) < eps) { *out_result = 1; return OK; }
+    if (fabs(b2 + c2 - a2) < eps) { *out_result = 1; return OK; }
 
-    return 0;
+    return OK;
 }
 
 void print_status(status st)
 {
     switch (st) {
-        case OK:            break;
-        case INVALID_INPUT: printf("Error: invalid input\n"); break;
-        case INVALID_MEMORY:printf("Error: memory allocation failed\n"); break;
-        case OVERFLO:       printf("Error: arithmetic overflow\n"); break;
-        case ZERO:          printf("Error: number must be non-zero\n"); break;
+        case OK:             break;
+        case INVALID_INPUT:  printf("Error: invalid input\n"); break;
+        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
+        case OVERFLOW:       printf("Error: arithmetic overflow\n"); break;
+        case ZERO:           printf("Error: number must be non-zero\n"); break;
     }
 }
 
@@ -269,7 +271,11 @@ int main(int argc, char *argv[])
             print_status(st);
             return st;
         }
-        run_q(eps, coeffs);
+        st = run_q(eps, coeffs);
+        if (st != OK) {
+            print_status(st);
+            return st;
+        }
     } else if (action == 't') {
         if (argc != 6) {
             printf("Error: wrong number of arguments\n");
@@ -283,7 +289,14 @@ int main(int argc, char *argv[])
             print_status(st);
             return st;
         }
-        if (is_right_triangle(sides[0], sides[1], sides[2], eps)) {
+
+        int right = 0;
+        st = is_right_triangle(sides[0], sides[1], sides[2], eps, &right);
+        if (st != OK) {
+            print_status(st);
+            return st;
+        }
+        if (right) {
             printf("Sides can form a right triangle\n");
         } else {
             printf("Sides cannot form a right triangle\n");
