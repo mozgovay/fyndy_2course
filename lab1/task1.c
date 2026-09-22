@@ -7,7 +7,7 @@ typedef enum{
     OK = 0,
     INVALID_INPUT,
     INVALID_MEMORY,
-    OVERFLOW
+    ERR_OVERFLOW
 } status;
 
 status validate_ulong(const char *s, unsigned long *out) {
@@ -62,7 +62,7 @@ status is_primary(unsigned long a, int *out_kind) {
 status fac(unsigned long a, unsigned long long *result) {
     *result = 1;
     for (unsigned long i = 2; i <= a; i++) {
-        if (*result > ULLONG_MAX / i) return OVERFLOW;
+        if (*result > ULLONG_MAX / i) return ERR_OVERFLOW;
         *result *= i;
     }
     return OK;
@@ -72,7 +72,7 @@ status sum_num(unsigned long a, unsigned long long *result) {
     if (a == 0) return INVALID_INPUT;
     *result = 1;
     for (unsigned long i = 2; i <= a; i++) {
-        if (*result > ULLONG_MAX - i) return OVERFLOW;
+        if (*result > ULLONG_MAX - i) return ERR_OVERFLOW;
         *result += i;
     }
     return OK;
@@ -86,7 +86,7 @@ status degree(unsigned long a, int n, unsigned long long **result) {
         if (value > ULLONG_MAX / (unsigned long long)n) {
             free(*result);
             *result = NULL;
-            return OVERFLOW;
+            return ERR_OVERFLOW;
         }
         value *= (unsigned long long)n;
         (*result)[i - 1] = value;
@@ -219,9 +219,9 @@ int main(int argc, char *argv[]) {
                     }
                     printf("\n");
                     free(resu);
-                } else if (st == OVERFLOW) {
+                } else if (st == ERR_OVERFLOW) {
                     printf("Error: arithmetic overflow\n");
-                    return OVERFLOW;
+                    return ERR_OVERFLOW;
                 } else {
                     printf("Error: memory allocation failed\n");
                     return INVALID_MEMORY;
@@ -236,9 +236,9 @@ int main(int argc, char *argv[]) {
             status st = sum_num(res, &res_a);
             if (st == OK) {
                 printf("Sum from 1 to %lu = %llu\n", res, res_a);
-            } else if (st == OVERFLOW) {
+            } else if (st == ERR_OVERFLOW) {
                 printf("Error: arithmetic overflow\n");
-                return OVERFLOW;
+                return ERR_OVERFLOW;
             } else {
                 printf("Error: invalid input\n");
                 return INVALID_INPUT;
@@ -251,9 +251,9 @@ int main(int argc, char *argv[]) {
             status st = fac(res, &res_f);
             if (st == OK) {
                 printf("Factorial of %lu = %llu\n", res, res_f);
-            } else if (st == OVERFLOW) {
+            } else if (st == ERR_OVERFLOW) {
                 printf("Error: arithmetic overflow\n");
-                return OVERFLOW;
+                return ERR_OVERFLOW;
             } else {
                 printf("Error: invalid input\n");
                 return INVALID_INPUT;
