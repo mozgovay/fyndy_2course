@@ -5,42 +5,26 @@
 
 typedef enum {
     OK = 0,
-    ERR_ARGC,
-    ERR_NUMBER,
-    ERR_RANGE,
-    ERR_MEMORY,
-    ERR_OVERFLOW,
-    ERR_CONVERGENCE
-} Status;
+    INVALID_INPUT,
+    INVALID_MEMORY,
+    OVERFLO
+} status;
 
-Status validate_epsilon(const char *s, double *out)
+status validate_epsilon(const char *s, double *out)
 {
-    if (s == NULL || *s == '\0') {
-        return ERR_NUMBER;
-    }
-    if (*s == '-') {
-        return ERR_NUMBER;
-    }
-
+    if (s == NULL || *s == '\0') return INVALID_INPUT;
+    if (*s == '-') return INVALID_INPUT;
     errno = 0;
     char *end = NULL;
     double value = strtod(s, &end);
-
-    if (errno == ERANGE) {
-        return ERR_OVERFLOW;
-    }
-    if (*end != '\0') {
-        return ERR_NUMBER;
-    }
-    if (value <= 0.0 || value >= 1.0) {
-        return ERR_RANGE;
-    }
-
+    if (errno == ERANGE) return OVERFLO;
+    if (*end != '\0') return INVALID_INPUT;
+    if (value <= 0.0 || value >= 1.0) return INVALID_INPUT;
     *out = value;
     return OK;
 }
 
-Status limit_e(double epsilon, double *out)
+status limit_e(double epsilon, double *out)
 {
     double n = 1.0, current = 0.0, previous = 0.0;
     do {
@@ -52,7 +36,7 @@ Status limit_e(double epsilon, double *out)
     return OK;
 }
 
-Status row_e(double epsilon, double *out)
+status row_e(double epsilon, double *out)
 {
     double current = 1.0, previous = 0.0, term = 1.0;
     int n = 1;
@@ -66,7 +50,7 @@ Status row_e(double epsilon, double *out)
     return OK;
 }
 
-Status equation_e(double epsilon, double *out)
+status equation_e(double epsilon, double *out)
 {
     double x = 3.0, f = 1.0;
     while (fabs(f) > epsilon) {
@@ -77,7 +61,7 @@ Status equation_e(double epsilon, double *out)
     return OK;
 }
 
-Status limit_pi(double epsilon, double *out)
+status limit_pi(double epsilon, double *out)
 {
     int n = 2;
     double current = 4.0, previous = 0.0;
@@ -90,7 +74,7 @@ Status limit_pi(double epsilon, double *out)
     return OK;
 }
 
-Status row_pi(double epsilon, double *out)
+status row_pi(double epsilon, double *out)
 {
     int n = 1;
     double current = 1.0, previous = 0.0;
@@ -105,7 +89,7 @@ Status row_pi(double epsilon, double *out)
     return OK;
 }
 
-Status equation_pi(double epsilon, double *out)
+status equation_pi(double epsilon, double *out)
 {
     double x = 3.0, f = 1.0;
     while (fabs(f) > epsilon) {
@@ -116,7 +100,7 @@ Status equation_pi(double epsilon, double *out)
     return OK;
 }
 
-Status limit_ln(double epsilon, double *out)
+status limit_ln(double epsilon, double *out)
 {
     double n = 1.0, current = 0.0, previous = 0.0;
     do {
@@ -128,7 +112,7 @@ Status limit_ln(double epsilon, double *out)
     return OK;
 }
 
-Status row_ln(double epsilon, double *out)
+status row_ln(double epsilon, double *out)
 {
     int n = 1;
     double current = 1.0, previous = 0.0;
@@ -143,7 +127,7 @@ Status row_ln(double epsilon, double *out)
     return OK;
 }
 
-Status equation_ln(double epsilon, double *out)
+status equation_ln(double epsilon, double *out)
 {
     double x = 1.0, f = 1.0;
     while (fabs(f) > epsilon) {
@@ -154,7 +138,7 @@ Status equation_ln(double epsilon, double *out)
     return OK;
 }
 
-Status limit_sqrt(double epsilon, double *out)
+status limit_sqrt(double epsilon, double *out)
 {
     double current = -0.5, previous = 0.0;
     do {
@@ -165,7 +149,7 @@ Status limit_sqrt(double epsilon, double *out)
     return OK;
 }
 
-Status row_sqrt(double epsilon, double *out)
+status row_sqrt(double epsilon, double *out)
 {
     int k = 2;
     double current = pow(2.0, 1.0 / 4.0), previous = 0.0;
@@ -178,7 +162,7 @@ Status row_sqrt(double epsilon, double *out)
     return OK;
 }
 
-Status equation_sqrt(double epsilon, double *out)
+status equation_sqrt(double epsilon, double *out)
 {
     double x = 1.0, f = 1.0;
     while (fabs(f) > epsilon) {
@@ -200,7 +184,7 @@ int is_prime(int number)
     return 1;
 }
 
-Status limit_gamma(double epsilon, double *out)
+status limit_gamma(double epsilon, double *out)
 {
     double n = 1.0, current = 0.0, previous = 0.0;
     do {
@@ -216,7 +200,7 @@ Status limit_gamma(double epsilon, double *out)
     return OK;
 }
 
-Status row_gamma(double epsilon, double *out)
+status row_gamma(double epsilon, double *out)
 {
     double current = 0.5, previous = 0.0;
     int k = 2;
@@ -230,7 +214,7 @@ Status row_gamma(double epsilon, double *out)
     return OK;
 }
 
-Status equation_gamma(double epsilon, double *out)
+status equation_gamma(double epsilon, double *out)
 {
     int p = 2;
     double current = log(2.0) * 0.5, previous = 0.0, product = 0.5;
@@ -246,71 +230,64 @@ Status equation_gamma(double epsilon, double *out)
     return OK;
 }
 
-void print_status(Status status)
-{
-    switch (status) {
-        case OK:                break;
-        case ERR_ARGC:          printf("Error: expected 1 argument: <epsilon>\n"); break;
-        case ERR_NUMBER:        printf("Error: epsilon must be a positive number\n"); break;
-        case ERR_RANGE:         printf("Error: epsilon out of range (0 < e < 1)\n"); break;
-        case ERR_MEMORY:        printf("Error: memory allocation failed\n"); break;
-        case ERR_OVERFLOW:      printf("Error: arithmetic overflow\n"); break;
-        case ERR_CONVERGENCE:   printf("Error: convergence not reached\n"); break;
-    }
-}
-
-void print_header(void)
-{
-    printf("Const Limit Row Equation\n");
-}
-
-void print_row(const char *name, double limit, double row, double equation)
-{
-    printf("%s %.10f %.10f %.10f\n", name, limit, row, equation);
-}
-
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
-        print_status(ERR_ARGC);
-        return (int)ERR_ARGC;
+        printf("Error: expected 1 argument: <epsilon>\n");
+        return INVALID_INPUT;
     }
 
     double epsilon = 0.0;
-    Status status = validate_epsilon(argv[1], &epsilon);
-    if (status != OK) {
-        print_status(status);
-        return (int)status;
+    status st = validate_epsilon(argv[1], &epsilon);
+    if (st != OK) {
+        if (st == INVALID_INPUT) printf("Error: epsilon must be a positive number in (0, 1)\n");
+        else if (st == OVERFLO) printf("Error: arithmetic overflow\n");
+        return st;
     }
 
     double a, b, c;
 
-    print_header();
+    printf("Const Limit Row Equation\n");
 
-    limit_e(epsilon, &a);
-    row_e(epsilon, &b);
-    equation_e(epsilon, &c);
-    print_row("e", a, b, c);
+    st = limit_e(epsilon, &a);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = row_e(epsilon, &b);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = equation_e(epsilon, &c);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    printf("e %f %f %f\n", a, b, c);
 
-    limit_pi(epsilon, &a);
-    row_pi(epsilon, &b);
-    equation_pi(epsilon, &c);
-    print_row("pi", a, b, c);
+    st = limit_pi(epsilon, &a);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = row_pi(epsilon, &b);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = equation_pi(epsilon, &c);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    printf("pi %f %f %f\n", a, b, c);
 
-    limit_ln(epsilon, &a);
-    row_ln(epsilon, &b);
-    equation_ln(epsilon, &c);
-    print_row("ln2", a, b, c);
+    st = limit_ln(epsilon, &a);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = row_ln(epsilon, &b);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = equation_ln(epsilon, &c);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    printf("ln2 %f %f %f\n", a, b, c);
 
-    limit_sqrt(epsilon, &a);
-    row_sqrt(epsilon, &b);
-    equation_sqrt(epsilon, &c);
-    print_row("sqrt(2)", a, b, c);
+    st = limit_sqrt(epsilon, &a);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = row_sqrt(epsilon, &b);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = equation_sqrt(epsilon, &c);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    printf("sqrt(2) %f %f %f\n", a, b, c);
 
-    limit_gamma(epsilon, &a);
-    row_gamma(epsilon, &b);
-    equation_gamma(epsilon, &c);
-    print_row("gamma", a, b, c);
+    st = limit_gamma(epsilon, &a);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = row_gamma(epsilon, &b);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    st = equation_gamma(epsilon, &c);
+    if (st != OK) { printf("Error: convergence not reached\n"); return st; }
+    printf("gamma %f %f %f\n", a, b, c);
 
     return 0;
 }
