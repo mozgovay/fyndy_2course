@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <math.h>
 #include <limits.h>
-#include <float.h>
 
 typedef enum {
     OK = 0,
     INVALID_INPUT,
     INVALID_MEMORY,
-    OVERFLOW,
+    OVERFLO,
     ZERO
 } status;
 
@@ -17,10 +17,11 @@ status validate_epsilon(const char *s, double *out)
     if (s == NULL || *s == '\0') return INVALID_INPUT;
     if (*s == '-') return INVALID_INPUT;
 
+    errno = 0;
     char *end = NULL;
     double value = strtod(s, &end);
 
-    if (value == HUGE_VAL || value == -HUGE_VAL) return OVERFLOW;
+    if (errno == ERANGE) return OVERFLO;
     if (*end != '\0') return INVALID_INPUT;
     if (value <= 0.0 || value >= 1.0) return INVALID_INPUT;
 
@@ -32,10 +33,11 @@ status validate_double(const char *s, double *out)
 {
     if (s == NULL || *s == '\0') return INVALID_INPUT;
 
+    errno = 0;
     char *end = NULL;
     double value = strtod(s, &end);
 
-    if (value == HUGE_VAL || value == -HUGE_VAL) return OVERFLOW;
+    if (errno == ERANGE) return OVERFLO;
     if (*end != '\0') return INVALID_INPUT;
 
     *out = value;
@@ -46,9 +48,11 @@ status validate_nonzero_int(const char *s, long *out)
 {
     if (s == NULL || *s == '\0') return INVALID_INPUT;
 
+    errno = 0;
     char *end = NULL;
     long value = strtol(s, &end, 10);
 
+    if (errno == ERANGE) return OVERFLO;
     if (*end != '\0') return INVALID_INPUT;
     if (value == 0) return ZERO;
 
@@ -208,17 +212,6 @@ status is_right_triangle(double a, double b, double c, double eps, int *out_resu
     return OK;
 }
 
-void print_status(status st)
-{
-    switch (st) {
-        case OK:             break;
-        case INVALID_INPUT:  printf("Error: invalid input\n"); break;
-        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
-        case OVERFLOW:       printf("Error: arithmetic overflow\n"); break;
-        case ZERO:           printf("Error: number must be non-zero\n"); break;
-    }
-}
-
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -250,7 +243,10 @@ int main(int argc, char *argv[])
         int result = 0;
         status st = task_m(argv[2], argv[3], &result);
         if (st != OK) {
-            print_status(st);
+            if (st == INVALID_INPUT) printf("Error: invalid input\n");
+            else if (st == INVALID_MEMORY) printf("Error: memory allocation failed\n");
+            else if (st == OVERFLO) printf("Error: arithmetic overflow\n");
+            else if (st == ZERO) printf("Error: number must be non-zero\n");
             return st;
         }
         if (result) {
@@ -268,12 +264,18 @@ int main(int argc, char *argv[])
         double coeffs[3] = {0, 0, 0};
         status st = task_q(argv[2], argv[3], argv[4], argv[5], &eps, coeffs);
         if (st != OK) {
-            print_status(st);
+            if (st == INVALID_INPUT) printf("Error: invalid input\n");
+            else if (st == INVALID_MEMORY) printf("Error: memory allocation failed\n");
+            else if (st == OVERFLO) printf("Error: arithmetic overflow\n");
+            else if (st == ZERO) printf("Error: number must be non-zero\n");
             return st;
         }
         st = run_q(eps, coeffs);
         if (st != OK) {
-            print_status(st);
+            if (st == INVALID_INPUT) printf("Error: invalid input\n");
+            else if (st == INVALID_MEMORY) printf("Error: memory allocation failed\n");
+            else if (st == OVERFLO) printf("Error: arithmetic overflow\n");
+            else if (st == ZERO) printf("Error: number must be non-zero\n");
             return st;
         }
     } else if (action == 't') {
@@ -286,14 +288,20 @@ int main(int argc, char *argv[])
         double sides[3] = {0, 0, 0};
         status st = task_t(argv[2], argv[3], argv[4], argv[5], &eps, sides);
         if (st != OK) {
-            print_status(st);
+            if (st == INVALID_INPUT) printf("Error: invalid input\n");
+            else if (st == INVALID_MEMORY) printf("Error: memory allocation failed\n");
+            else if (st == OVERFLO) printf("Error: arithmetic overflow\n");
+            else if (st == ZERO) printf("Error: number must be non-zero\n");
             return st;
         }
 
         int right = 0;
         st = is_right_triangle(sides[0], sides[1], sides[2], eps, &right);
         if (st != OK) {
-            print_status(st);
+            if (st == INVALID_INPUT) printf("Error: invalid input\n");
+            else if (st == INVALID_MEMORY) printf("Error: memory allocation failed\n");
+            else if (st == OVERFLO) printf("Error: arithmetic overflow\n");
+            else if (st == ZERO) printf("Error: number must be non-zero\n");
             return st;
         }
         if (right) {
