@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <float.h>
+
 
 typedef enum {
     OK = 0,
     INVALID_INPUT,
     INVALID_MEMORY,
-    OVERFLOW,
+    ERR_OVERFLOW,
     CONVERGENCE
 } status;
 
@@ -20,7 +20,7 @@ status validate_epsilon(const char *s, double *out)
     double value = strtod(s, &end);
 
     if (*end != '\0') return INVALID_INPUT;
-    if (value == HUGE_VAL || value == -HUGE_VAL) return OVERFLOW;
+    if (value == HUGE_VAL || value == -HUGE_VAL) return ERR_OVERFLOW;
     if (value <= 0.0 || value >= 1.0) return INVALID_INPUT;
 
     *out = value;
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
     status st = validate_epsilon(argv[1], &epsilon);
     if (st != OK) {
         if (st == INVALID_INPUT) printf("Error: epsilon must be a positive number in (0, 1)\n");
-        else if (st == OVERFLOW) printf("Error: arithmetic overflow\n");
+        else if (st == ERR_OVERFLOW) printf("Error: arithmetic overflow\n");
         return st;
     }
 
