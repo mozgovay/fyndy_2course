@@ -1,24 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <errno.h>
 #include <math.h>
 
 typedef enum{
     OK = 0,
     INVALID_INPUT,
-    INVALID_MEMORY
+    INVALID_MEMORY,
+    OVERFLOW
 } status;
 
 status validate_ulong(const char *s, unsigned long *out) {
     if (s == NULL || *s == '\0') return INVALID_INPUT;
     if (*s == '-') return INVALID_INPUT;
-    errno = 0;
+
     char *end = NULL;
     unsigned long value = strtoul(s, &end, 10);
-    if (errno == ERANGE) return INVALID_INPUT;
+
     if (*end != '\0') return INVALID_INPUT;
     if (value == 0) return INVALID_INPUT;
+
     *out = value;
     return OK;
 }
@@ -36,6 +37,7 @@ status numbers(unsigned long a, int **b, int *kol) {
                 int *b_r = (int *)realloc(*b, cap * sizeof(int));
                 if (!b_r) {
                     free(*b);
+                    *b = NULL;
                     return INVALID_MEMORY;
                 }
                 *b = b_r;
@@ -46,20 +48,21 @@ status numbers(unsigned long a, int **b, int *kol) {
     return OK;
 }
 
-int is_primary(unsigned long a) {
-    if (a == 2) return 0;
-    if (a == 0 || a == 1) return 2;
-    if (a % 2 == 0) return 1;
+status is_primary(unsigned long a, int *out_kind) {
+    if (a == 2) { *out_kind = 0; return OK; }
+    if (a == 0 || a == 1) { *out_kind = 2; return OK; }
+    if (a % 2 == 0) { *out_kind = 1; return OK; }
     for (unsigned long i = 3; i * i <= a; i += 2) {
-        if (a % i == 0) return 1;
+        if (a % i == 0) { *out_kind = 1; return OK; }
     }
-    return 0;
+    *out_kind = 0;
+    return OK;
 }
 
 status fac(unsigned long a, unsigned long long *result) {
     *result = 1;
     for (unsigned long i = 2; i <= a; i++) {
-        if (*result > ULLONG_MAX / i) return INVALID_MEMORY;
+        if (*result > ULLONG_MAX / i) return OVERFLOW;
         *result *= i;
     }
     return OK;
@@ -69,7 +72,7 @@ status sum_num(unsigned long a, unsigned long long *result) {
     if (a == 0) return INVALID_INPUT;
     *result = 1;
     for (unsigned long i = 2; i <= a; i++) {
-        if (*result > ULLONG_MAX - i) return INVALID_MEMORY;
+        if (*result > ULLONG_MAX - i) return OVERFLOW;
         *result += i;
     }
     return OK;
@@ -82,13 +85,15 @@ status degree(unsigned long a, int n, unsigned long long **result) {
     for (unsigned long i = 1; i <= a; i++) {
         if (value > ULLONG_MAX / (unsigned long long)n) {
             free(*result);
-            return INVALID_MEMORY;
+            *result = NULL;
+            return OVERFLOW;
         }
         value *= (unsigned long long)n;
         (*result)[i - 1] = value;
     }
     return OK;
 }
+
 status to_16(unsigned long a, char **result, int *kol)
 {
     int cap = 4;
@@ -124,6 +129,7 @@ status to_16(unsigned long a, char **result, int *kol)
     *kol = count;
     return OK;
 }
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         printf("Error: invalid number of arguments\n");
@@ -165,10 +171,15 @@ int main(int argc, char *argv[]) {
         }
 
         case 'p': {
-            int pr = is_primary(res);
-            if (pr == 2) {
+            int kind = 0;
+            status st = is_primary(res, &kind);
+            if (st != OK) {
+                printf("Error: invalid input\n");
+                return st;
+            }
+            if (kind == 2) {
                 printf("%lu is neither prime nor composite\n", res);
-            } else if (pr) {
+            } else if (kind == 1) {
                 printf("%lu is composite\n", res);
             } else {
                 printf("%lu is prime\n", res);
@@ -208,8 +219,11 @@ int main(int argc, char *argv[]) {
                     }
                     printf("\n");
                     free(resu);
-                } else {
+                } else if (st == OVERFLOW) {
                     printf("Error: arithmetic overflow\n");
+                    return OVERFLOW;
+                } else {
+                    printf("Error: memory allocation failed\n");
                     return INVALID_MEMORY;
                 }
                 osnov++;
@@ -219,22 +233,30 @@ int main(int argc, char *argv[]) {
 
         case 'a': {
             unsigned long long res_a = 0;
-            if (sum_num(res, &res_a) != OK) {
-                printf("Error: failed to compute sum\n");
-                return INVALID_INPUT;
-            } else {
+            status st = sum_num(res, &res_a);
+            if (st == OK) {
                 printf("Sum from 1 to %lu = %llu\n", res, res_a);
+            } else if (st == OVERFLOW) {
+                printf("Error: arithmetic overflow\n");
+                return OVERFLOW;
+            } else {
+                printf("Error: invalid input\n");
+                return INVALID_INPUT;
             }
             break;
         }
 
         case 'f': {
             unsigned long long res_f = 1;
-            if (fac(res, &res_f) != OK) {
-                printf("Error: arithmetic overflow\n");
-                return INVALID_MEMORY;
-            } else {
+            status st = fac(res, &res_f);
+            if (st == OK) {
                 printf("Factorial of %lu = %llu\n", res, res_f);
+            } else if (st == OVERFLOW) {
+                printf("Error: arithmetic overflow\n");
+                return OVERFLOW;
+            } else {
+                printf("Error: invalid input\n");
+                return INVALID_INPUT;
             }
             break;
         }
