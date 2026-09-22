@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <math.h>
 #include <limits.h>
 
@@ -8,7 +7,7 @@ typedef enum {
     OK = 0,
     INVALID_INPUT,
     INVALID_MEMORY,
-    OVERFLO,
+    ERR_OVERFLOW,
     ZERO
 } status;
 
@@ -17,11 +16,10 @@ status validate_epsilon(const char *s, double *out)
     if (s == NULL || *s == '\0') return INVALID_INPUT;
     if (*s == '-') return INVALID_INPUT;
 
-    errno = 0;
     char *end = NULL;
     double value = strtod(s, &end);
 
-    if (errno == ERANGE) return OVERFLO;
+    if (value == HUGE_VAL || value == -HUGE_VAL) return ERR_OVERFLOW;
     if (*end != '\0') return INVALID_INPUT;
     if (value <= 0.0 || value >= 1.0) return INVALID_INPUT;
 
@@ -33,11 +31,10 @@ status validate_double(const char *s, double *out)
 {
     if (s == NULL || *s == '\0') return INVALID_INPUT;
 
-    errno = 0;
     char *end = NULL;
     double value = strtod(s, &end);
 
-    if (errno == ERANGE) return OVERFLO;
+    if (value == HUGE_VAL || value == -HUGE_VAL) return ERR_OVERFLOW;
     if (*end != '\0') return INVALID_INPUT;
 
     *out = value;
@@ -48,11 +45,9 @@ status validate_nonzero_int(const char *s, long *out)
 {
     if (s == NULL || *s == '\0') return INVALID_INPUT;
 
-    errno = 0;
     char *end = NULL;
     long value = strtol(s, &end, 10);
 
-    if (errno == ERANGE) return OVERFLO;
     if (*end != '\0') return INVALID_INPUT;
     if (value == 0) return ZERO;
 
@@ -246,7 +241,7 @@ int main(int argc, char *argv[])
             case OK: break;
             case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
             case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case OVERFLO:        printf("Error: arithmetic overflow\n"); return st;
+            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
             case ZERO:           printf("Error: number must be non-zero\n"); return st;
         }
         if (result) {
@@ -267,7 +262,7 @@ int main(int argc, char *argv[])
             case OK: break;
             case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
             case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case OVERFLO:        printf("Error: arithmetic overflow\n"); return st;
+            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
             case ZERO:           printf("Error: number must be non-zero\n"); return st;
         }
         st = run_q(eps, coeffs);
@@ -275,7 +270,7 @@ int main(int argc, char *argv[])
             case OK: break;
             case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
             case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case OVERFLO:        printf("Error: arithmetic overflow\n"); return st;
+            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
             case ZERO:           printf("Error: number must be non-zero\n"); return st;
         }
     } else if (action == 't') {
@@ -291,7 +286,7 @@ int main(int argc, char *argv[])
             case OK: break;
             case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
             case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case OVERFLO:        printf("Error: arithmetic overflow\n"); return st;
+            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
             case ZERO:           printf("Error: number must be non-zero\n"); return st;
         }
 
@@ -301,7 +296,7 @@ int main(int argc, char *argv[])
             case OK: break;
             case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
             case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case OVERFLO:        printf("Error: arithmetic overflow\n"); return st;
+            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
             case ZERO:           printf("Error: number must be non-zero\n"); return st;
         }
         if (right) {
