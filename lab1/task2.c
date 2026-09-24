@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-
 typedef enum {
     OK = 0,
     INVALID_INPUT,
@@ -74,16 +73,16 @@ status equation_e(double epsilon, double *out)
 
 status limit_pi(double epsilon, double *out)
 {
-    int n = 2, iter = 0;
-    double current = 4.0, previous = 0.0;
+    int n = 1, iter = 0;
+    double current = 2.0, previous = 0.0;
     do {
         previous = current;
-        current *= (4.0 * n * (n - 1.0)) / pow(2.0 * n - 1.0, 2);
+        current *= (4.0 * n * n) / (4.0 * n * n - 1.0);
         n++;
         iter++;
         if (iter > 100000) return CONVERGENCE;
     } while (fabs(previous - current) >= epsilon);
-    *out = current;
+    *out = current * 2.0;
     return OK;
 }
 
@@ -166,11 +165,11 @@ status equation_ln(double epsilon, double *out)
 
 status limit_sqrt(double epsilon, double *out)
 {
-    double current = -0.5, previous = 0.0;
+    double current = 1.0, previous = 0.0;
     int iter = 0;
     do {
         previous = current;
-        current = (2.0 * previous - previous * previous + 2.0) / 2.0;
+        current = (previous + 2.0 / previous) / 2.0;
         iter++;
         if (iter > 100000) return CONVERGENCE;
     } while (fabs(previous - current) >= epsilon);
@@ -240,8 +239,8 @@ status limit_gamma(double epsilon, double *out)
 
 status row_gamma(double epsilon, double *out)
 {
-    double current = 0.5, previous = 0.0;
-    int k = 2, iter = 0;
+    double current = 0.0, previous = 0.0;
+    int k = 1, iter = 0;
     do {
         previous = current;
         k++;
