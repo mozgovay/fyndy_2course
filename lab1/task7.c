@@ -24,17 +24,6 @@ status validate_args(int argc, char *argv[])
     return OK;
 }
 
-static void print_status(status st)
-{
-    switch (st) {
-        case INVALID_INPUT:  printf("Error: invalid input\n"); break;
-        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
-        case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
-        case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
-        default: break;
-    }
-}
-
 static int is_space_char(int c)
 {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
@@ -188,7 +177,13 @@ int main(int argc, char *argv[])
 {
     status st = validate_args(argc, argv);
     if (st != OK) {
-        print_status(st);
+        switch (st) {
+            case INVALID_INPUT:  printf("Error: invalid input\n"); break;
+            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
+            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
+            case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
+            default: break;
+        }
         return st;
     }
 
@@ -205,7 +200,13 @@ int main(int argc, char *argv[])
 
     if (st != OK) {
         result_free(&res);
-        print_status(st);
+        switch (st) {
+            case INVALID_INPUT:  printf("Error: invalid input\n"); break;
+            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
+            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
+            case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
+            default: break;
+        }
         return st;
     }
 
@@ -220,7 +221,13 @@ int main(int argc, char *argv[])
         if (fprintf(fo, "%s\n", res.lines[i]) < 0) {
             result_free(&res);
             fclose(fo);
-            print_status(INVALID_INPUT);
+            switch (st) {
+                case INVALID_INPUT:  printf("Error: invalid input\n"); break;
+                case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
+                case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
+                case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
+                default: break;
+            }
             return INVALID_INPUT;
         }
     }
