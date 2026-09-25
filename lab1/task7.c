@@ -10,31 +10,45 @@ typedef enum {
     NO_CONVERGENCE
 } status;
 
-typedef struct {
-    char **lines;
-    size_t count;
-    size_t cap;
-} result_t;
-
-status validate_args(int argc, char *argv[])
-{
-    if (argc != 3) return INVALID_INPUT;
-    if (argv[1] == NULL || *argv[1] == '\0') return INVALID_INPUT;
-    if (argv[2] == NULL || *argv[2] == '\0') return INVALID_INPUT;
-    return OK;
-}
-
 static int is_space_char(int c)
 {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
 }
 
-static int digit_value(int c)
+status validate_flag(const char *s, char *out_action)
 {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
-    return -1;
+    if (s == NULL || *s == '\0') return INVALID_INPUT;
+    if (s[0] != '-' && s[0] != '/') return INVALID_INPUT;
+    if (s[1] == '\0') return INVALID_INPUT;
+    if (s[2] != '\0') return INVALID_INPUT;
+    if (s[1] != 'r' && s[1] != 'a') return INVALID_INPUT;
+    *out_action = s[1];
+    return OK;
+}
+
+status validate_args(int argc, char *argv[], char *out_action)
+{
+    if (argc < 2) return INVALID_INPUT;
+
+    status st = validate_flag(argv[1], out_action);
+    if (st != OK) return st;
+
+    if (*out_action == 'r') {
+        if (argc != 5) return INVALID_INPUT;
+        if (argv[2] == NULL || *argv[2] == '\0') return INVALID_INPUT;
+        if (argv[3] == NULL || *argv[3] == '\0') return INVALID_INPUT;
+        if (argv[4] == NULL || *argv[4] == '\0') return INVALID_INPUT;
+        return OK;
+    }
+
+    if (*out_action == 'a') {
+        if (argc != 4) return INVALID_INPUT;
+        if (argv[2] == NULL || *argv[2] == '\0') return INVALID_INPUT;
+        if (argv[3] == NULL || *argv[3] == '\0') return INVALID_INPUT;
+        return OK;
+    }
+
+    return INVALID_INPUT;
 }
 
 static status read_token(FILE *f, char **out, int *has)
@@ -73,77 +87,146 @@ static status read_token(FILE *f, char **out, int *has)
     return OK;
 }
 
-static status process_token(const char *tok,
-                            char **out_clean,
-                            long long *out_base,
-                            unsigned long long *out_value)
+static status write_token(FILE *f, const char *tok, int *first)
 {
-    size_t len = strlen(tok);
-    if (len == 0) return INVALID_INPUT;
-
-    int min_base = 2;
-    for (size_t i = 0; i < len; i++) {
-        int d = digit_value((unsigned char)tok[i]);
-        if (d < 0) return INVALID_INPUT;
-        if (d + 1 > min_base) min_base = d + 1;
+    if (!*first) {
+        if (fputc(' ', f) == EOF) return INVALID_INPUT;
     }
-
-    size_t start = 0;
-    while (tok[start] == '0' && tok[start + 1] != '\0') start++;
-    size_t clean_len = strlen(tok + start);
-
-    char *clean = malloc(clean_len + 1);
-    if (!clean) return INVALID_MEMORY;
-    memcpy(clean, tok + start, clean_len + 1);
-
-    unsigned long long value = 0;
-    for (size_t i = start; tok[i] != '\0'; i++) {
-        int d = digit_value((unsigned char)tok[i]);
-        unsigned long long old = value;
-        value = value * (unsigned long long)min_base + (unsigned long long)d;
-        if (value < old) {
-            free(clean);
-            return ERR_OVERFLOW;
-        }
+    *first = 0;
+    for (size_t i = 0; tok[i] != '\0'; i++) {
+        if (fputc(tok[i], f) == EOF) return INVALID_INPUT;
     }
-
-    *out_clean = clean;
-    *out_base = (long long)min_base;
-    *out_value = value;
     return OK;
 }
 
-static status result_add(result_t *r, const char *line)
+static status do_r(const char *path1, const char *path2, const char *out_path)
 {
-    if (r->count == r->cap) {
-        size_t newcap = r->cap ? r->cap * 2 : 16;
-        char **tmp = realloc(r->lines, newcap * sizeof(char*));
-        if (!tmp) return INVALID_MEMORY;
-        r->lines = tmp;
-        r->cap = newcap;
-    }
-    char *copy = malloc(strlen(line) + 1);
-    if (!copy) return INVALID_MEMORY;
-    strcpy(copy, line);
-    r->lines[r->count++] = copy;
-    return OK;
-}
+    FILE *f1 = fopen(path1, "r");
+    if (!f1) return INVALID_INPUT;
 
-static void result_free(result_t *r)
-{
-    if (r == NULL) return;
-    for (size_t i = 0; i < r->count; i++) free(r->lines[i]);
-    free(r->lines);
-    r->lines = NULL;
-    r->count = 0;
-    r->cap = 0;
-}
+    FILE *f2 = fopen(path2, "r");
+    if (!f2) { fclose(f1); return INVALID_INPUT; }
 
-status do_task(FILE *fi, result_t *r)
-{
-    if (fi == NULL || r == NULL) return INVALID_INPUT;
+    FILE *fo = fopen(out_path, "w");
+    if (!fo) { fclose(f1); fclose(f2); return INVALID_INPUT; }
 
     status st = OK;
+    int first = 1;
+    int has1 = 0, has2 = 0;
+    char *t1 = NULL, *t2 = NULL;
+
+    while (1) {
+        st = read_token(f1, &t1, &has1);
+        if (st != OK) break;
+        if (has1) {
+            st = write_token(fo, t1, &first);
+            free(t1); t1 = NULL;
+            if (st != OK) break;
+        }
+
+        st = read_token(f2, &t2, &has2);
+        if (st != OK) break;
+        if (has2) {
+            st = write_token(fo, t2, &first);
+            free(t2); t2 = NULL;
+            if (st != OK) break;
+        }
+
+        if (!has1 && !has2) break;
+    }
+
+    free(t1);
+    free(t2);
+    fclose(f1);
+    fclose(f2);
+    fclose(fo);
+    return st;
+}
+
+static status to_base(long code, int base, char *buf, size_t bufsize)
+{
+    char tmp[64];
+    int len = 0;
+    if (code == 0) {
+        if (bufsize < 2) return ERR_OVERFLOW;
+        buf[0] = '0';
+        buf[1] = '\0';
+        return OK;
+    }
+    while (code > 0 && len < (int)sizeof(tmp)) {
+        tmp[len++] = (char)('0' + (code % base));
+        code /= base;
+    }
+    if (len + 1 > (int)bufsize) return ERR_OVERFLOW;
+    for (int i = 0; i < len; i++) {
+        buf[i] = tmp[len - 1 - i];
+    }
+    buf[len] = '\0';
+    return OK;
+}
+
+static status transform_token_10(FILE *fo, const char *tok, int *first)
+{
+    char buf[32];
+    if (!*first) {
+        if (fputc(' ', fo) == EOF) return INVALID_INPUT;
+    }
+    *first = 0;
+    for (size_t i = 0; tok[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)tok[i];
+        if (c >= 'A' && c <= 'Z') c = (unsigned char)(c - 'A' + 'a');
+        status st = to_base((long)c, 4, buf, sizeof(buf));
+        if (st != OK) return st;
+        for (size_t j = 0; buf[j] != '\0'; j++) {
+            if (fputc(buf[j], fo) == EOF) return INVALID_INPUT;
+        }
+    }
+    return OK;
+}
+
+static status transform_token_2(FILE *fo, const char *tok, int *first)
+{
+    if (!*first) {
+        if (fputc(' ', fo) == EOF) return INVALID_INPUT;
+    }
+    *first = 0;
+    for (size_t i = 0; tok[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)tok[i];
+        if (c >= 'A' && c <= 'Z') c = (unsigned char)(c - 'A' + 'a');
+        if (fputc(c, fo) == EOF) return INVALID_INPUT;
+    }
+    return OK;
+}
+
+static status transform_token_5(FILE *fo, const char *tok, int *first)
+{
+    char buf[32];
+    if (!*first) {
+        if (fputc(' ', fo) == EOF) return INVALID_INPUT;
+    }
+    *first = 0;
+    for (size_t i = 0; tok[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)tok[i];
+        status st = to_base((long)c, 8, buf, sizeof(buf));
+        if (st != OK) return st;
+        for (size_t j = 0; buf[j] != '\0'; j++) {
+            if (fputc(buf[j], fo) == EOF) return INVALID_INPUT;
+        }
+    }
+    return OK;
+}
+
+static status do_a(const char *in_path, const char *out_path)
+{
+    FILE *fi = fopen(in_path, "r");
+    if (!fi) return INVALID_INPUT;
+
+    FILE *fo = fopen(out_path, "w");
+    if (!fo) { fclose(fi); return INVALID_INPUT; }
+
+    status st = OK;
+    int first = 1;
+    long idx = 0;
     char *tok = NULL;
     int has = 0;
 
@@ -151,31 +234,33 @@ status do_task(FILE *fi, result_t *r)
         st = read_token(fi, &tok, &has);
         if (st != OK) break;
         if (!has) break;
+        idx++;
 
-        char *clean = NULL;
-        long long base = 0;
-        unsigned long long value = 0;
+        if (idx % 10 == 0) {
+            st = transform_token_10(fo, tok, &first);
+        } else if (idx % 2 == 0) {
+            st = transform_token_2(fo, tok, &first);
+        } else if (idx % 5 == 0) {
+            st = transform_token_5(fo, tok, &first);
+        } else {
+            st = write_token(fo, tok, &first);
+        }
 
-        st = process_token(tok, &clean, &base, &value);
         free(tok);
         tok = NULL;
-        if (st != OK) break;
-
-        char line[128];
-        snprintf(line, sizeof(line), "%s %lld %llu", clean, base, value);
-        free(clean);
-
-        st = result_add(r, line);
         if (st != OK) break;
     }
 
     free(tok);
+    fclose(fi);
+    fclose(fo);
     return st;
 }
 
 int main(int argc, char *argv[])
 {
-    status st = validate_args(argc, argv);
+    char action = 0;
+    status st = validate_args(argc, argv, &action);
     if (st != OK) {
         switch (st) {
             case INVALID_INPUT:  printf("Error: invalid input\n"); break;
@@ -187,52 +272,19 @@ int main(int argc, char *argv[])
         return st;
     }
 
-    FILE *fi = fopen(argv[1], "r");
-    if (!fi) {
-        printf("Error: cannot open input file\n");
-        return INVALID_INPUT;
+    if (action == 'r') {
+        st = do_r(argv[2], argv[3], argv[4]);
+    } else if (action == 'a') {
+        st = do_a(argv[2], argv[3]);
     }
 
-    result_t res = { NULL, 0, 0 };
-
-    st = do_task(fi, &res);
-    fclose(fi);
-
-    if (st != OK) {
-        result_free(&res);
-        switch (st) {
-            case INVALID_INPUT:  printf("Error: invalid input\n"); break;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
-            default: break;
-        }
-        return st;
+    switch (st) {
+        case OK: break;
+        case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
+        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
+        case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
+        case NO_CONVERGENCE: printf("Error: no convergence\n"); return st;
     }
 
-    FILE *fo = fopen(argv[2], "w");
-    if (!fo) {
-        result_free(&res);
-        printf("Error: cannot open output file\n");
-        return INVALID_INPUT;
-    }
-
-    for (size_t i = 0; i < res.count; i++) {
-        if (fprintf(fo, "%s\n", res.lines[i]) < 0) {
-            result_free(&res);
-            fclose(fo);
-            switch (st) {
-                case INVALID_INPUT:  printf("Error: invalid input\n"); break;
-                case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
-                case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
-                case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
-                default: break;
-            }
-            return INVALID_INPUT;
-        }
-    }
-
-    fclose(fo);
-    result_free(&res);
     return OK;
 }
