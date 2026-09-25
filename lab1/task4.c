@@ -121,17 +121,6 @@ status process_s(FILE *in, FILE *out)
     return OK;
 }
 
-void print_status(status st)
-{
-    switch (st) {
-        case OK:             break;
-        case INVALID_INPUT:  printf("Error: invalid input\n"); break;
-        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
-        case FILE_ERROR:     printf("Error: file operation failed\n"); break;
-        case OVERFLOW:       printf("Error: counter overflow\n"); break;
-    }
-}
-
 int main(int argc, char *argv[])
 {
     if (argc < 3 || argc > 4) {
@@ -142,9 +131,12 @@ int main(int argc, char *argv[])
     char action = 0;
     int has_n = 0;
     status st = validate_flag(argv[1], &action, &has_n);
-    if (st != OK) {
-        print_status(st);
-        return st;
+    switch (st) {
+        case OK: break;
+        case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
+        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
+        case FILE_ERROR:     printf("Error: file operation failed\n"); return st;
+        case OVERFLOW:       printf("Error: counter overflow\n"); return st;
     }
 
     const char *in_path = argv[2];
@@ -162,9 +154,12 @@ int main(int argc, char *argv[])
             return INVALID_INPUT;
         }
         st = make_out_path(in_path, &out_path);
-        if (st != OK) {
-            print_status(st);
-            return st;
+        switch (st) {
+            case OK: break;
+            case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
+            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
+            case FILE_ERROR:     printf("Error: file operation failed\n"); return st;
+            case OVERFLOW:       printf("Error: counter overflow\n"); return st;
         }
     }
 
@@ -195,9 +190,12 @@ int main(int argc, char *argv[])
     fclose(out);
     if (!has_n) free(out_path);
 
-    if (st != OK) {
-        print_status(st);
-        return st;
+    switch (st) {
+        case OK: break;
+        case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
+        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
+        case FILE_ERROR:     printf("Error: file operation failed\n"); return st;
+        case OVERFLOW:       printf("Error: counter overflow\n"); return st;
     }
 
     return 0;
