@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <string.h>
 #include <limits.h>
 #include <math.h>
 
@@ -10,125 +9,152 @@ typedef enum {
     INVALID_INPUT,
     INVALID_MEMORY,
     ERR_OVERFLOW,
-    NO_CONVERGENCE
+    NO_CONVERGENCE,
+    ERR_TASK,
+    ERR_ARGC
 } status;
 
-static int is_int(const char *s)
+static status is_int(const char *s, int *out_result)
 {
-    if (s == NULL || *s == '\0') return 0;
+    if (s == NULL || out_result == NULL) return INVALID_INPUT;
+    if (*s == '\0') { *out_result = 0; return OK; }
     int i = 0;
     if (s[0] == '-' || s[0] == '+') i = 1;
-    if (s[i] == '\0') return 0;
+    if (s[i] == '\0') { *out_result = 0; return OK; }
     for (; s[i] != '\0'; i++) {
-        if (s[i] < '0' || s[i] > '9') return 0;
+        if (s[i] < '0' || s[i] > '9') { *out_result = 0; return OK; }
     }
-    return 1;
+    *out_result = 1;
+    return OK;
 }
 
-static int is_double(const char *s)
+static status is_double(const char *s, int *out_result)
 {
-    if (s == NULL || *s == '\0') return 0;
+    if (s == NULL || out_result == NULL) return INVALID_INPUT;
+    if (*s == '\0') { *out_result = 0; return OK; }
+
     int i = 0;
     int digits = 0;
     int dots = 0;
     if (s[0] == '-' || s[0] == '+') i = 1;
+
     for (; s[i] != '\0'; i++) {
         if (s[i] >= '0' && s[i] <= '9') { digits++; continue; }
-        if (s[i] == '.') { dots++; if (dots > 1) return 0; continue; }
+        if (s[i] == '.') {
+            dots++;
+            if (dots > 1) { *out_result = 0; return OK; }
+            continue;
+        }
         if (s[i] == 'e' || s[i] == 'E') {
-            if (digits == 0) return 0;
+            if (digits == 0) { *out_result = 0; return OK; }
             i++;
             if (s[i] == '-' || s[i] == '+') i++;
-            if (s[i] < '0' || s[i] > '9') return 0;
+            if (s[i] < '0' || s[i] > '9') { *out_result = 0; return OK; }
             for (; s[i] != '\0'; i++) {
-                if (s[i] < '0' || s[i] > '9') return 0;
+                if (s[i] < '0' || s[i] > '9') { *out_result = 0; return OK; }
             }
-            return 1;
+            *out_result = 1;
+            return OK;
         }
-        return 0;
+        *out_result = 0;
+        return OK;
     }
-    return digits > 0;
+
+    *out_result = (digits > 0) ? 1 : 0;
+    return OK;
 }
 
-static int to_int(const char *s, int *out)
+static status to_int(const char *s, int *out)
 {
-    if (!is_int(s)) return 0;
+    if (s == NULL || out == NULL) return INVALID_INPUT;
+
+    int valid = 0;
+    status st = is_int(s, &valid);
+    if (st != OK) return st;
+    if (!valid) return INVALID_INPUT;
+
     char *end = NULL;
     long v = strtol(s, &end, 10);
-    if (end == s || *end != '\0') return 0;
-    if (v < INT_MIN || v > INT_MAX) return 0;
+    if (end == s || *end != '\0') return INVALID_INPUT;
+    if (v < INT_MIN || v > INT_MAX) return INVALID_INPUT;
     *out = (int)v;
-    return 1;
+    return OK;
 }
 
-static int to_double(const char *s, double *out)
+static status to_double(const char *s, double *out)
 {
-    if (!is_double(s)) return 0;
+    if (s == NULL || out == NULL) return INVALID_INPUT;
+
+    int valid = 0;
+    status st = is_double(s, &valid);
+    if (st != OK) return st;
+    if (!valid) return INVALID_INPUT;
+
     char *end = NULL;
     double v = strtod(s, &end);
-    if (end == s || *end != '\0') return 0;
-    if (isinf(v) || isnan(v)) return 0;
+    if (end == s || *end != '\0') return INVALID_INPUT;
+    if (isinf(v) || isnan(v)) return INVALID_INPUT;
     *out = v;
-    return 1;
+    return OK;
 }
 
 static status check_eps(const char *s)
 {
     double v;
-    if (!to_double(s, &v)) return INVALID_INPUT;
+    if (to_double(s, &v) != OK) return INVALID_INPUT;
     if (v <= 0.0 || v >= 1.0) return INVALID_INPUT;
     return OK;
 }
 
 status validate_args(int argc, char *argv[])
 {
-    if (argc < 3) return INVALID_INPUT;
+    if (argc < 3) return ERR_ARGC;
 
     int task;
-    if (!to_int(argv[1], &task)) return INVALID_INPUT;
-    if (task < 1 || task > 6) return INVALID_INPUT;
+    if (to_int(argv[1], &task) != OK) return ERR_TASK;
+    if (task < 1 || task > 6) return ERR_TASK;
 
     if (task == 1) {
-        if (argc < 9) return INVALID_INPUT;
+        if (argc < 9) return ERR_ARGC;
         if (check_eps(argv[2]) != OK) return INVALID_INPUT;
 
         int total = argc - 3;
-        if (total < 6 || total % 2 != 0) return INVALID_INPUT;
-        if (total / 2 > 6) return INVALID_INPUT;
+        if (total < 6 || total % 2 != 0) return ERR_ARGC;
+        if (total / 2 > 6) return ERR_ARGC;
 
         for (int i = 0; i < total; i++) {
             double tmp;
-            if (!to_double(argv[3 + i], &tmp)) return INVALID_INPUT;
+            if (to_double(argv[3 + i], &tmp) != OK) return INVALID_INPUT;
         }
         return OK;
     }
 
     if (task == 2) {
-        if (argc < 5) return INVALID_INPUT;
+        if (argc < 5) return ERR_ARGC;
 
         double x;
         int n;
-        if (!to_double(argv[2], &x)) return INVALID_INPUT;
-        if (!to_int(argv[3], &n)) return INVALID_INPUT;
-        if (n < 0 || n > 6) return INVALID_INPUT;
-        if (argc != 4 + (n + 1)) return INVALID_INPUT;
+        if (to_double(argv[2], &x) != OK) return INVALID_INPUT;
+        if (to_int(argv[3], &n) != OK) return INVALID_INPUT;
+        if (n < 0 || n > 6) return ERR_ARGC;
+        if (argc != 4 + (n + 1)) return ERR_ARGC;
 
         for (int i = 0; i <= n; i++) {
             double tmp;
-            if (!to_double(argv[4 + i], &tmp)) return INVALID_INPUT;
+            if (to_double(argv[4 + i], &tmp) != OK) return INVALID_INPUT;
         }
         return OK;
     }
 
     if (task == 3) {
-        if (argc < 5) return INVALID_INPUT;
+        if (argc < 5) return ERR_ARGC;
 
         int base, n;
-        if (!to_int(argv[2], &base)) return INVALID_INPUT;
-        if (!to_int(argv[3], &n)) return INVALID_INPUT;
+        if (to_int(argv[2], &base) != OK) return INVALID_INPUT;
+        if (to_int(argv[3], &n) != OK) return INVALID_INPUT;
         if (base < 2 || base > 36) return INVALID_INPUT;
-        if (n < 1 || n > 6) return INVALID_INPUT;
-        if (argc != 4 + n) return INVALID_INPUT;
+        if (n < 1 || n > 6) return ERR_ARGC;
+        if (argc != 4 + n) return ERR_ARGC;
 
         for (int i = 0; i < n; i++) {
             if (argv[4 + i] == NULL || *argv[4 + i] == '\0')
@@ -138,58 +164,61 @@ status validate_args(int argc, char *argv[])
     }
 
     if (task == 4) {
-        if (argc < 5) return INVALID_INPUT;
+        if (argc < 5) return ERR_ARGC;
         if (check_eps(argv[2]) != OK) return INVALID_INPUT;
 
         int n;
-        if (!to_int(argv[3], &n)) return INVALID_INPUT;
-        if (n <= 0 || n > 6) return INVALID_INPUT;
-        if (argc != 4 + n) return INVALID_INPUT;
+        if (to_int(argv[3], &n) != OK) return INVALID_INPUT;
+        if (n <= 0 || n > 6) return ERR_ARGC;
+        if (argc != 4 + n) return ERR_ARGC;
 
         for (int i = 0; i < n; i++) {
             double v;
-            if (!to_double(argv[4 + i], &v)) return INVALID_INPUT;
+            if (to_double(argv[4 + i], &v) != OK) return INVALID_INPUT;
             if (v <= 0.0) return INVALID_INPUT;
         }
         return OK;
     }
 
     if (task == 5) {
-        if (argc != 4) return INVALID_INPUT;
+        if (argc != 4) return ERR_ARGC;
 
         double base;
         int exp;
-        if (!to_double(argv[2], &base)) return INVALID_INPUT;
-        if (!to_int(argv[3], &exp)) return INVALID_INPUT;
+        if (to_double(argv[2], &base) != OK) return INVALID_INPUT;
+        if (to_int(argv[3], &exp) != OK) return INVALID_INPUT;
         if (exp < 0) return INVALID_INPUT;
         return OK;
     }
 
     if (task == 6) {
-        if (argc != 6) return INVALID_INPUT;
+        if (argc != 6) return ERR_ARGC;
 
         double a, b;
         int fid;
-        if (!to_double(argv[2], &a)) return INVALID_INPUT;
-        if (!to_double(argv[3], &b)) return INVALID_INPUT;
+        if (to_double(argv[2], &a) != OK) return INVALID_INPUT;
+        if (to_double(argv[3], &b) != OK) return INVALID_INPUT;
         if (check_eps(argv[4]) != OK) return INVALID_INPUT;
-        if (!to_int(argv[5], &fid)) return INVALID_INPUT;
+        if (to_int(argv[5], &fid) != OK) return INVALID_INPUT;
         if (a >= b) return INVALID_INPUT;
         if (fid < 1 || fid > 4) return INVALID_INPUT;
         return OK;
     }
 
-    return INVALID_INPUT;
+    return ERR_TASK;
 }
 
-static int parse_double_arg(const char *s, double *out)
+static void print_status(status st)
 {
-    return to_double(s, out);
-}
-
-static int parse_int_arg(const char *s, int *out)
-{
-    return to_int(s, out);
+    switch (st) {
+        case INVALID_INPUT:  printf("Error: invalid input\n"); break;
+        case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
+        case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
+        case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
+        case ERR_TASK:       printf("Error: unknown task\n"); break;
+        case ERR_ARGC:       printf("Error: bad argument count\n"); break;
+        default: break;
+    }
 }
 
 status is_convex(int n, double eps, int *out_result, ...)
@@ -280,47 +309,59 @@ status poly_value(double x, int n, double *out, ...)
     return OK;
 }
 
-static int char_to_digit(char c)
+static status char_to_digit(char c, int *out_digit)
 {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
-    return -1;
+    if (out_digit == NULL) return INVALID_INPUT;
+
+    if (c >= '0' && c <= '9') { *out_digit = c - '0'; return OK; }
+    if (c >= 'a' && c <= 'z') { *out_digit = c - 'a' + 10; return OK; }
+    if (c >= 'A' && c <= 'Z') { *out_digit = c - 'A' + 10; return OK; }
+
+    return INVALID_INPUT;
 }
 
-static long long parse_in_base(const char *s, int base, int *ok)
+static status parse_in_base(const char *s, int base, long long *out_value)
 {
-    long long result = 0;
-    *ok = 1;
+    if (s == NULL || out_value == NULL) return INVALID_INPUT;
+    if (*s == '\0') return INVALID_INPUT;
 
-    if (s == NULL || *s == '\0') { *ok = 0; return 0; }
+    long long result = 0;
 
     for (int i = 0; s[i] != '\0'; i++) {
-        int d = char_to_digit(s[i]);
-        if (d < 0 || d >= base) { *ok = 0; return 0; }
+        int d = 0;
+        if (char_to_digit(s[i], &d) != OK) return INVALID_INPUT;
+        if (d >= base) return INVALID_INPUT;
+
         result = result * base + d;
-        if (result < 0) { *ok = 0; return 0; }
+        if (result < 0) return ERR_OVERFLOW;
     }
-    return result;
+
+    *out_value = result;
+    return OK;
 }
 
-static int is_kaprekar(long long n, int base)
+static status is_kaprekar(long long n, int base, int *out_result)
 {
-    if (n == 0) return 0;
+    if (out_result == NULL) return INVALID_INPUT;
+
+    *out_result = 0;
+
+    if (n == 0) return OK;
 
     long long sq = n * n;
-    if (sq < 0) return 0;
+    if (sq < 0) return OK;
 
     long long pow_base = 1;
-    while (pow_base * base <= sq) pow_base *= base;
+    while (pow_base <= sq / base) pow_base *= base;
 
     for (long long split = pow_base; split > 0; split /= base) {
         long long left = sq / split;
         long long right = sq % split;
-        if (left + right == n) return 1;
+        if (left + right == n) { *out_result = 1; return OK; }
         if (split == 1) break;
     }
-    return 0;
+
+    return OK;
 }
 
 status kaprekar(int base, int n, int *out_count, ...)
@@ -335,13 +376,22 @@ status kaprekar(int base, int n, int *out_count, ...)
     int count = 0;
     for (int i = 0; i < n; i++) {
         const char *s = va_arg(ap, const char *);
-        int ok = 0;
-        long long value = parse_in_base(s, base, &ok);
-        if (!ok) {
+
+        long long value = 0;
+        status st = parse_in_base(s, base, &value);
+        if (st != OK) {
             va_end(ap);
-            return INVALID_INPUT;
+            return st;
         }
-        if (is_kaprekar(value, base)) count++;
+
+        int is_k = 0;
+        st = is_kaprekar(value, base, &is_k);
+        if (st != OK) {
+            va_end(ap);
+            return st;
+        }
+
+        if (is_k) count++;
     }
 
     va_end(ap);
@@ -361,7 +411,7 @@ status geometric_mean(int n, double eps, double *out, ...)
     double log_sum = 0.0;
     for (int i = 0; i < n; i++) {
         double x = va_arg(ap, double);
-        if (x <= eps) {
+        if (x <= 0.0) {
             va_end(ap);
             return INVALID_INPUT;
         }
@@ -419,6 +469,9 @@ status bisection(double a, double b, double eps,
     double fa = f(a);
     double fb = f(b);
 
+    if (fa == 0.0) { *out = a; return OK; }
+    if (fb == 0.0) { *out = b; return OK; }
+
     if (fa * fb > 0.0) return INVALID_INPUT;
 
     int iter = 0;
@@ -426,7 +479,7 @@ status bisection(double a, double b, double eps,
         double mid = (a + b) / 2.0;
         double fm = f(mid);
 
-        if (fabs(fm) < eps) {
+        if (fm == 0.0) {
             *out = mid;
             return OK;
         }
@@ -450,30 +503,20 @@ status bisection(double a, double b, double eps,
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        printf("Usage:\n");
-        printf("  %s 1 eps x0 y0 x1 y1 ...\n", argv[0]);
-        printf("  %s 2 x n c0 c1 ... cn\n", argv[0]);
-        printf("  %s 3 base n s0 s1 ... s_{n-1}\n", argv[0]);
-        printf("  %s 4 eps n x0 x1 ... x_{n-1}\n", argv[0]);
-        printf("  %s 5 base exp\n", argv[0]);
-        printf("  %s 6 a b eps func_id\n", argv[0]);
-        return INVALID_INPUT;
+        return ERR_ARGC;
     }
 
     status st = validate_args(argc, argv);
     if (st != OK) {
-        switch (st) {
-            case INVALID_INPUT:  printf("Error: invalid input\n"); break;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); break;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); break;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); break;
-            default: break;
-        }
+        print_status(st);
         return st;
     }
 
     int task;
-    parse_int_arg(argv[1], &task);
+    if (to_int(argv[1], &task) != OK) {
+        print_status(INVALID_INPUT);
+        return INVALID_INPUT;
+    }
 
     int ires = 0;
     double dres = 0.0;
@@ -483,12 +526,19 @@ int main(int argc, char *argv[])
         int n = total / 2;
 
         double eps;
-        parse_double_arg(argv[2], &eps);
+        if (to_double(argv[2], &eps) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
 
         double *c = malloc(sizeof(double) * total);
-        if (!c) { printf("Error: memory allocation failed\n"); return INVALID_MEMORY; }
+        if (!c) { print_status(INVALID_MEMORY); return INVALID_MEMORY; }
         for (int i = 0; i < total; i++) {
-            parse_double_arg(argv[3 + i], &c[i]);
+            if (to_double(argv[3 + i], &c[i]) != OK) {
+                free(c);
+                print_status(INVALID_INPUT);
+                return INVALID_INPUT;
+            }
         }
 
         switch (n) {
@@ -516,13 +566,7 @@ int main(int argc, char *argv[])
                 return INVALID_INPUT;
         }
         free(c);
-        switch (st) {
-            case OK: break;
-            case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); return st;
-        }
+        if (st != OK) { print_status(st); return st; }
         printf("Result: %s\n", ires ? "convex" : "not convex");
         return OK;
     }
@@ -530,13 +574,23 @@ int main(int argc, char *argv[])
     if (task == 2) {
         double x;
         int n;
-        parse_double_arg(argv[2], &x);
-        parse_int_arg(argv[3], &n);
+        if (to_double(argv[2], &x) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
+        if (to_int(argv[3], &n) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
 
         double *c = malloc(sizeof(double) * (n + 1));
-        if (!c) { printf("Error: memory allocation failed\n"); return INVALID_MEMORY; }
+        if (!c) { print_status(INVALID_MEMORY); return INVALID_MEMORY; }
         for (int i = 0; i <= n; i++) {
-            parse_double_arg(argv[4 + i], &c[i]);
+            if (to_double(argv[4 + i], &c[i]) != OK) {
+                free(c);
+                print_status(INVALID_INPUT);
+                return INVALID_INPUT;
+            }
         }
 
         switch (n) {
@@ -553,21 +607,21 @@ int main(int argc, char *argv[])
                 return INVALID_INPUT;
         }
         free(c);
-        switch (st) {
-            case OK: break;
-            case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); return st;
-        }
+        if (st != OK) { print_status(st); return st; }
         printf("Result: %f\n", dres);
         return OK;
     }
 
     if (task == 3) {
         int base, n;
-        parse_int_arg(argv[2], &base);
-        parse_int_arg(argv[3], &n);
+        if (to_int(argv[2], &base) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
+        if (to_int(argv[3], &n) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
 
         switch (n) {
             case 1: st = kaprekar(base, n, &ires, argv[4]); break;
@@ -580,13 +634,7 @@ int main(int argc, char *argv[])
                 printf("Error: only n <= 6 supported\n");
                 return INVALID_INPUT;
         }
-        switch (st) {
-            case OK: break;
-            case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); return st;
-        }
+        if (st != OK) { print_status(st); return st; }
         printf("Kaprekar count: %d\n", ires);
         return OK;
     }
@@ -594,13 +642,23 @@ int main(int argc, char *argv[])
     if (task == 4) {
         double eps;
         int n;
-        parse_double_arg(argv[2], &eps);
-        parse_int_arg(argv[3], &n);
+        if (to_double(argv[2], &eps) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
+        if (to_int(argv[3], &n) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
 
         double *xs = malloc(sizeof(double) * n);
-        if (!xs) { printf("Error: memory allocation failed\n"); return INVALID_MEMORY; }
+        if (!xs) { print_status(INVALID_MEMORY); return INVALID_MEMORY; }
         for (int i = 0; i < n; i++) {
-            parse_double_arg(argv[4 + i], &xs[i]);
+            if (to_double(argv[4 + i], &xs[i]) != OK) {
+                free(xs);
+                print_status(INVALID_INPUT);
+                return INVALID_INPUT;
+            }
         }
 
         switch (n) {
@@ -616,13 +674,7 @@ int main(int argc, char *argv[])
                 return INVALID_INPUT;
         }
         free(xs);
-        switch (st) {
-            case OK: break;
-            case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); return st;
-        }
+        if (st != OK) { print_status(st); return st; }
         printf("Geometric mean: %f\n", dres);
         return OK;
     }
@@ -630,17 +682,17 @@ int main(int argc, char *argv[])
     if (task == 5) {
         double base;
         int exp;
-        parse_double_arg(argv[2], &base);
-        parse_int_arg(argv[3], &exp);
+        if (to_double(argv[2], &base) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
+        if (to_int(argv[3], &exp) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
 
         st = fast_pow(base, exp, &dres);
-        switch (st) {
-            case OK: break;
-            case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); return st;
-        }
+        if (st != OK) { print_status(st); return st; }
         printf("Result: %f\n", dres);
         return OK;
     }
@@ -648,10 +700,22 @@ int main(int argc, char *argv[])
     if (task == 6) {
         double a, b, eps;
         int fid;
-        parse_double_arg(argv[2], &a);
-        parse_double_arg(argv[3], &b);
-        parse_double_arg(argv[4], &eps);
-        parse_int_arg(argv[5], &fid);
+        if (to_double(argv[2], &a) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
+        if (to_double(argv[3], &b) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
+        if (to_double(argv[4], &eps) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
+        if (to_int(argv[5], &fid) != OK) {
+            print_status(INVALID_INPUT);
+            return INVALID_INPUT;
+        }
 
         double (*f)(double) = NULL;
         switch (fid) {
@@ -665,17 +729,11 @@ int main(int argc, char *argv[])
         }
 
         st = bisection(a, b, eps, f, &dres);
-        switch (st) {
-            case OK: break;
-            case INVALID_INPUT:  printf("Error: invalid input\n"); return st;
-            case INVALID_MEMORY: printf("Error: memory allocation failed\n"); return st;
-            case ERR_OVERFLOW:   printf("Error: arithmetic overflow\n"); return st;
-            case NO_CONVERGENCE: printf("Error: no convergence\n"); return st;
-        }
+        if (st != OK) { print_status(st); return st; }
         printf("Root: %f\n", dres);
         return OK;
     }
 
-    printf("Error: unknown task\n");
-    return INVALID_INPUT;
+    print_status(ERR_TASK);
+    return ERR_TASK;
 }
