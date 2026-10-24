@@ -339,21 +339,78 @@ int oversprintf(char *buf, const char *fmt, ...)
 int main(void)
 {
     char buf[1024];
+    int choice;
 
-    oversprintf(buf, "roman=%Ro zeck=%Zr hex=%Cv HEX=%CV dec=%to dec2=%TO",
-                2024, 100u, 255, 255, "ff", 10, "FF", 16);
-    printf("%s\n", buf);
+    if (scanf("%d", &choice) != 1) return INVALID_INPUT;
 
-    overfprintf(stdout, "std=%d %s %x\n", 42, "hello", 0xdeadbeef);
-
-    int i = -1;
-    unsigned int u = 0x01020304u;
-    double d = 1.5;
-    float f = -2.5f;
-    overfprintf(stdout, "mi=%mi\n", i);
-    overfprintf(stdout, "mu=%mu\n", u);
-    overfprintf(stdout, "md=%md\n", d);
-    overfprintf(stdout, "mf=%mf\n", f);
+    switch (choice) {
+        case 1: {
+            int v;
+            if (scanf("%d", &v) != 1) return INVALID_INPUT;
+            overfprintf(stdout, "%Ro\n", v);
+            break;
+        }
+        case 2: {
+            unsigned int v;
+            if (scanf("%u", &v) != 1) return INVALID_INPUT;
+            overfprintf(stdout, "%Zr\n", v);
+            break;
+        }
+        case 3: {
+            int v, base;
+            if (scanf("%d %d", &v, &base) != 2) return INVALID_INPUT;
+            overfprintf(stdout, "%Cv\n", v, base);
+            overfprintf(stdout, "%CV\n", v, base);
+            break;
+        }
+        case 4: {
+            char s[64];
+            int base;
+            if (scanf("%63s %d", s, &base) != 2) return INVALID_INPUT;
+            overfprintf(stdout, "%to\n", s, base);
+            overfprintf(stdout, "%TO\n", s, base);
+            break;
+        }
+        case 5: {
+            int v;
+            if (scanf("%d", &v) != 1) return INVALID_INPUT;
+            overfprintf(stdout, "%mi\n", v);
+            break;
+        }
+        case 6: {
+            unsigned int v;
+            if (scanf("%u", &v) != 1) return INVALID_INPUT;
+            overfprintf(stdout, "%mu\n", v);
+            break;
+        }
+        case 7: {
+            double v;
+            if (scanf("%lf", &v) != 1) return INVALID_INPUT;
+            overfprintf(stdout, "%md\n", v);
+            break;
+        }
+        case 8: {
+            float v;
+            if (scanf("%f", &v) != 1) return INVALID_INPUT;
+            overfprintf(stdout, "%mf\n", v);
+            break;
+        }
+        case 9: {
+            int i; char s[64]; unsigned int u;
+            if (scanf("%d %63s %u", &i, s, &u) != 3) return INVALID_INPUT;
+            overfprintf(stdout, "%d %s %x\n", i, s, u);
+            break;
+        }
+        case 10: {
+            int v;
+            if (scanf("%d", &v) != 1) return INVALID_INPUT;
+            oversprintf(buf, "%Ro", v);
+            printf("%s\n", buf);
+            break;
+        }
+        default:
+            return INVALID_INPUT;
+    }
 
     return OK;
 }
