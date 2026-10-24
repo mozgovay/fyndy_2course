@@ -338,79 +338,66 @@ int oversprintf(char *buf, const char *fmt, ...)
 
 int main(void)
 {
-    char buf[1024];
-    int choice;
+    char fmt[256];
 
-    if (scanf("%d", &choice) != 1) return INVALID_INPUT;
+    // Читаем строку формата (до перевода строки)
+    if (fgets(fmt, sizeof(fmt), stdin) == NULL) {
+        printf("Error: invalid input\n");
+        return INVALID_INPUT;
+    }
+    
+    // Убираем \n в конце
+    size_t len = strlen(fmt);
+    if (len > 0 && fmt[len - 1] == '\n') fmt[len - 1] = '\0';
 
-    switch (choice) {
-        case 1: {
-            int v;
-            if (scanf("%d", &v) != 1) return INVALID_INPUT;
-            overfprintf(stdout, "%Ro\n", v);
-            break;
-        }
-        case 2: {
-            unsigned int v;
-            if (scanf("%u", &v) != 1) return INVALID_INPUT;
-            overfprintf(stdout, "%Zr\n", v);
-            break;
-        }
-        case 3: {
-            int v, base;
-            if (scanf("%d %d", &v, &base) != 2) return INVALID_INPUT;
-            overfprintf(stdout, "%Cv\n", v, base);
-            overfprintf(stdout, "%CV\n", v, base);
-            break;
-        }
-        case 4: {
-            char s[64];
-            int base;
-            if (scanf("%63s %d", s, &base) != 2) return INVALID_INPUT;
-            overfprintf(stdout, "%to\n", s, base);
-            overfprintf(stdout, "%TO\n", s, base);
-            break;
-        }
-        case 5: {
-            int v;
-            if (scanf("%d", &v) != 1) return INVALID_INPUT;
-            overfprintf(stdout, "%mi\n", v);
-            break;
-        }
-        case 6: {
-            unsigned int v;
-            if (scanf("%u", &v) != 1) return INVALID_INPUT;
-            overfprintf(stdout, "%mu\n", v);
-            break;
-        }
-        case 7: {
-            double v;
-            if (scanf("%lf", &v) != 1) return INVALID_INPUT;
-            overfprintf(stdout, "%md\n", v);
-            break;
-        }
-        case 8: {
-            float v;
-            if (scanf("%f", &v) != 1) return INVALID_INPUT;
-            overfprintf(stdout, "%mf\n", v);
-            break;
-        }
-        case 9: {
-            int i; char s[64]; unsigned int u;
-            if (scanf("%d %63s %u", &i, s, &u) != 3) return INVALID_INPUT;
-            overfprintf(stdout, "%d %s %x\n", i, s, u);
-            break;
-        }
-        case 10: {
-            int v;
-            if (scanf("%d", &v) != 1) return INVALID_INPUT;
-            oversprintf(buf, "%Ro", v);
-            printf("%s\n", buf);
-            break;
-        }
-        default:
-            return INVALID_INPUT;
+    // Проверяем, что ввели именно формат (начинается с % или содержит %)
+    if (strchr(fmt, '%') == NULL) {
+        printf("Error: format string must contain '%%'\n");
+        return INVALID_INPUT;
     }
 
+    // Если формат содержит %Ro, %Zr, %Cv и т.д.
+    // Нам нужно передать нужные аргументы. 
+    // Поскольку мы читаем с консоли, мы должны понять, какие типы данных запрашиваются.
+    
+    // Для простоты демонстрации: если в формате есть специфические флаги,
+    // мы запрашиваем нужные данные.
+    
+    if (strstr(fmt, "%Ro") || strstr(fmt, "%mi") || strstr(fmt, "%Cv") || strstr(fmt, "%CV")) {
+        // Нужен int (и возможно base)
+        if (strstr(fmt, "%Cv") || strstr(fmt, "%CV")) {
+            int v, base;
+            if (scanf("%d %d", &v, &base) != 2) return INVALID_INPUT;
+            overfprintf(stdout, fmt, v, base);
+        } else {
+            int v;
+            if (scanf("%d", &v) != 1) return INVALID_INPUT;
+            overfprintf(stdout, fmt, v);
+        }
+    } 
+    else if (strstr(fmt, "%Zr") || strstr(fmt, "%mu")) {
+        unsigned int v;
+        if (scanf("%u", &v) != 1) return INVALID_INPUT;
+        overfprintf(stdout, fmt, v);
+    }
+    else if (strstr(fmt, "%to") || strstr(fmt, "%TO")) {
+        char s[64];
+        int base;
+        if (scanf("%63s %d", s, &base) != 2) return INVALID_INPUT;
+        overfprintf(stdout, fmt, s, base);
+    }
+    else if (strstr(fmt, "%md") || strstr(fmt, "%mf")) {
+        double v;
+        if (scanf("%lf", &v) != 1) return INVALID_INPUT;
+        overfprintf(stdout, fmt, v);
+    }
+    else {
+        // Стандартные флаги (%d, %s, %x и т.д.) - читаем три аргумента
+        int i; char s[64]; unsigned int u;
+        if (scanf("%d %63s %u", &i, s, &u) != 3) return INVALID_INPUT;
+        overfprintf(stdout, fmt, i, s, u);
+    }
+
+    printf("\n");
     return OK;
 }
