@@ -4,7 +4,6 @@
 #include <string.h>
 #include <stdint.h>
 
-
 typedef enum {
     OK = 0,
     INVALID_INPUT,
@@ -338,66 +337,80 @@ int oversprintf(char *buf, const char *fmt, ...)
 
 int main(void)
 {
-    char fmt[256];
+    char line[256];
 
-    // Читаем строку формата (до перевода строки)
-    if (fgets(fmt, sizeof(fmt), stdin) == NULL) {
+    if (fgets(line, sizeof(line), stdin) == NULL) {
         printf("Error: invalid input\n");
         return INVALID_INPUT;
     }
-    
-    // Убираем \n в конце
-    size_t len = strlen(fmt);
-    if (len > 0 && fmt[len - 1] == '\n') fmt[len - 1] = '\0';
 
-    // Проверяем, что ввели именно формат (начинается с % или содержит %)
-    if (strchr(fmt, '%') == NULL) {
-        printf("Error: format string must contain '%%'\n");
-        return INVALID_INPUT;
-    }
+    size_t len = strlen(line);
+    if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
 
-    // Если формат содержит %Ro, %Zr, %Cv и т.д.
-    // Нам нужно передать нужные аргументы. 
-    // Поскольку мы читаем с консоли, мы должны понять, какие типы данных запрашиваются.
-    
-    // Для простоты демонстрации: если в формате есть специфические флаги,
-    // мы запрашиваем нужные данные.
-    
-    if (strstr(fmt, "%Ro") || strstr(fmt, "%mi") || strstr(fmt, "%Cv") || strstr(fmt, "%CV")) {
-        // Нужен int (и возможно base)
-        if (strstr(fmt, "%Cv") || strstr(fmt, "%CV")) {
-            int v, base;
-            if (scanf("%d %d", &v, &base) != 2) return INVALID_INPUT;
-            overfprintf(stdout, fmt, v, base);
-        } else {
-            int v;
-            if (scanf("%d", &v) != 1) return INVALID_INPUT;
-            overfprintf(stdout, fmt, v);
-        }
+    if (strstr(line, "%Ro")) {
+        int v;
+        char *p = strstr(line, "%Ro") + 3; 
+        while (*p == ' ') p++;
+        if (sscanf(p, "%d", &v) == 1) overfprintf(stdout, "%Ro", v);
     } 
-    else if (strstr(fmt, "%Zr") || strstr(fmt, "%mu")) {
+    else if (strstr(line, "%Zr")) {
         unsigned int v;
-        if (scanf("%u", &v) != 1) return INVALID_INPUT;
-        overfprintf(stdout, fmt, v);
+        char *p = strstr(line, "%Zr") + 3;
+        while (*p == ' ') p++;
+        if (sscanf(p, "%u", &v) == 1) overfprintf(stdout, "%Zr", v);
     }
-    else if (strstr(fmt, "%to") || strstr(fmt, "%TO")) {
-        char s[64];
-        int base;
-        if (scanf("%63s %d", s, &base) != 2) return INVALID_INPUT;
-        overfprintf(stdout, fmt, s, base);
+    else if (strstr(line, "%Cv") || strstr(line, "%CV")) {
+        int v, base;
+        char *p = strstr(line, "%C"); 
+        p = strchr(p, ' ') + 1;
+        if (sscanf(p, "%d %d", &v, &base) == 2) {
+            if (strstr(line, "%Cv")) overfprintf(stdout, "%Cv", v, base);
+            else overfprintf(stdout, "%CV", v, base);
+        }
     }
-    else if (strstr(fmt, "%md") || strstr(fmt, "%mf")) {
+    else if (strstr(line, "%to") || strstr(line, "%TO")) {
+        char s[64]; int base;
+        char *p = strstr(line, "%t");
+        p = strchr(p, ' ') + 1;
+        if (sscanf(p, "%63s %d", s, &base) == 2) {
+            if (strstr(line, "%to")) overfprintf(stdout, "%to", s, base);
+            else overfprintf(stdout, "%TO", s, base);
+        }
+    }
+    else if (strstr(line, "%mi")) {
+        int v;
+        char *p = strstr(line, "%mi") + 3;
+        while (*p == ' ') p++;
+        if (sscanf(p, "%d", &v) == 1) overfprintf(stdout, "%mi", v);
+    }
+    else if (strstr(line, "%mu")) {
+        unsigned int v;
+        char *p = strstr(line, "%mu") + 3;
+        while (*p == ' ') p++;
+        if (sscanf(p, "%u", &v) == 1) overfprintf(stdout, "%mu", v);
+    }
+    else if (strstr(line, "%md")) {
         double v;
-        if (scanf("%lf", &v) != 1) return INVALID_INPUT;
-        overfprintf(stdout, fmt, v);
+        char *p = strstr(line, "%md") + 3;
+        while (*p == ' ') p++;
+        if (sscanf(p, "%lf", &v) == 1) overfprintf(stdout, "%md", v);
     }
-    else {
-        // Стандартные флаги (%d, %s, %x и т.д.) - читаем три аргумента
+    else if (strstr(line, "%mf")) {
+        float v;
+        char *p = strstr(line, "%mf") + 3;
+        while (*p == ' ') p++;
+        if (sscanf(p, "%f", &v) == 1) overfprintf(stdout, "%mf", v);
+    }
+    else if (strstr(line, "%d") || strstr(line, "%s")) {
         int i; char s[64]; unsigned int u;
-        if (scanf("%d %63s %u", &i, s, &u) != 3) return INVALID_INPUT;
-        overfprintf(stdout, fmt, i, s, u);
+        char *p = strstr(line, "%d");
+        if (!p) p = strstr(line, "%s");
+        p = strchr(p, ' ') + 1;
+        if (sscanf(p, "%d %63s %u", &i, s, &u) == 3) {
+            overfprintf(stdout, "%d %s %x", i, s, u);
+        }
     }
-
+    
     printf("\n");
     return OK;
 }
