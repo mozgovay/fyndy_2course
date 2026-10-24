@@ -196,59 +196,53 @@ int oversscanf(const char *s, const char *fmt, ...)
 
 int main(void)
 {
-    int choice;
-    if (scanf("%d", &choice) != 1) return INVALID_INPUT;
-
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF) {}
-
     char line[256];
-    if (fgets(line, sizeof(line), stdin) == NULL) return INVALID_INPUT;
+
+    if (fgets(line, sizeof(line), stdin) == NULL) {
+        return INVALID_INPUT;
+    }
+
     size_t len = strlen(line);
     if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
 
-    switch (choice) {
-        case 1: {
+    if (strstr(line, "%Ro")) {
+        char input[128];
+        char *p = strstr(line, "%Ro") + 3;
+        while (*p == ' ') p++;
+        if (sscanf(p, "%127s", input) == 1) {
             int v = 0;
-            int n = oversscanf(line, "%Ro", &v);
-            printf("%d\n", n == 1 ? v : -1);
-            break;
+            int n = oversscanf(input, "%Ro", &v);
+            if (n == 1) printf("%d\n", v);
+            else printf("Error\n");
         }
-        case 2: {
-            unsigned int v = 0;
-            int n = oversscanf(line, "%Zr", &v);
-            printf("%d\n", n == 1 ? (int)v : -1);
-            break;
-        }
-        case 3: {
-            int base;
-            if (scanf("%d", &base) != 1) return INVALID_INPUT;
-            while ((c = getchar()) != '\n' && c != EOF) {}
-            char line2[256];
-            if (fgets(line2, sizeof(line2), stdin) == NULL) return INVALID_INPUT;
-            len = strlen(line2);
-            if (len > 0 && line2[len - 1] == '\n') line2[len - 1] = '\0';
-            int v = 0;
-            int n = oversscanf(line2, "%Cv", &v, base);
-            printf("%d\n", n == 1 ? v : -1);
-            break;
-        }
-        case 4: {
-            int base;
-            if (scanf("%d", &base) != 1) return INVALID_INPUT;
-            while ((c = getchar()) != '\n' && c != EOF) {}
-            char line2[256];
-            if (fgets(line2, sizeof(line2), stdin) == NULL) return INVALID_INPUT;
-            len = strlen(line2);
-            if (len > 0 && line2[len - 1] == '\n') line2[len - 1] = '\0';
-            int v = 0;
-            int n = oversscanf(line2, "%CV", &v, base);
-            printf("%d\n", n == 1 ? v : -1);
-            break;
-        }
-        default:
-            return INVALID_INPUT;
     }
-
+    else if (strstr(line, "%Zr")) {
+        char input[128];
+        char *p = strstr(line, "%Zr") + 3;
+        while (*p == ' ') p++;
+        if (sscanf(p, "%127s", input) == 1) {
+            unsigned int v = 0;
+            int n = oversscanf(input, "%Zr", &v);
+            if (n == 1) printf("%u\n", v);
+            else printf("Error\n");
+        }
+    }
+    else if (strstr(line, "%Cv") || strstr(line, "%CV")) {
+        int base;
+        char input[128];
+        char *p = strstr(line, "%C") + 2;
+        while (*p == ' ') p++;
+        
+        if (sscanf(p, "%d %127s", &base, input) == 2) {
+            int v = 0;
+            int n;
+            if (strstr(line, "%Cv")) n = oversscanf(input, "%Cv", &v, base);
+            else n = oversscanf(input, "%CV", &v, base);
+            
+            if (n == 1) printf("%d\n", v);
+            else printf("Error\n");
+        }
+    }
+    
     return OK;
 }
